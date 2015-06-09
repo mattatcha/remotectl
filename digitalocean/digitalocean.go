@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
-
 	env "github.com/MattAitchison/envconfig"
 	"github.com/MattAitchison/remotectl/providers"
 	"github.com/digitalocean/godo"
 )
 
 var doToken = env.String("do_access_token", "", "digitalocean PAT token")
+var doPrefix = env.String("do_prefix", "", "digitalocean droplet search prefix")
 
 func init() {
 	providers.Providers.Register(new(DOProvider), "do")
@@ -43,6 +43,7 @@ func getPublicIP(droplet godo.Droplet) string {
 		}
 	}
 
+	// FIXME: Shouldnt return an empty string if an IP address can't be found.
 	return ""
 }
 
@@ -56,6 +57,10 @@ func (p *DOProvider) Get() ([]providers.Host, error) {
 	hosts := []providers.Host{}
 
 	for _, drop := range drops {
+		if len(doPrefix) != 0 && !strings.HasPrefix(drop.Name, doPrefix) {
+			continue
+		}
+
 		host := providers.Host{
 			Name: drop.Name,
 			Addr: getPublicIP(drop),
