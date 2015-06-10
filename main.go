@@ -70,7 +70,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	hosts := []ext.Host{}
+	var hosts []ext.Host
 	// Get all of the hosts from each provider.
 	// This will have a way to filter soon.
 	f := func(c rune) bool {
@@ -103,10 +103,11 @@ func main() {
 	cfg, err := newSSHClientConfig()
 	fatalErr(err)
 
+	cmd := strings.Join(flag.Args(), " ")
 	group := &sync.WaitGroup{}
 	for _, host := range hosts {
 		group.Add(1)
-		go runSSHCmd(group, cfg, host)
+		go runSSHCmd(group, cfg, host, cmd)
 	}
 
 	// Wait until all ssh cmds are done running.
@@ -149,7 +150,7 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 
 }
 
-func runSSHCmd(group *sync.WaitGroup, cfg *ssh.ClientConfig, host ext.Host) {
+func runSSHCmd(group *sync.WaitGroup, cfg *ssh.ClientConfig, host ext.Host, cmd string) {
 	defer group.Done()
 
 	// Append port to host.Addr
@@ -172,8 +173,7 @@ func runSSHCmd(group *sync.WaitGroup, cfg *ssh.ClientConfig, host ext.Host) {
 	go hostStreamer(host, outPipe, os.Stdout)
 	go hostStreamer(host, errPipe, os.Stderr)
 
-	// Run command that was passed into remotectl - doesn't belong here
-	session.Run(strings.Join(flag.Args(), " "))
+	session.Run(cmd)
 }
 
 func helpCmd() {
