@@ -5,7 +5,7 @@ type Provider interface {
 	// Setup
 	Setup()
 	// Hosts
-	Query() ([]Host, error)
+	Query(namespace, query string) ([]Host, error)
 }
 
 type Host struct {

@@ -36,7 +36,7 @@ var (
 	ident         = env.String("remotectl_identity", "", "private key file")
 	usr           = env.String("remotectl_user", strings.ToLower(curUser.Username), "user to connect as")
 	provider      = env.String("remotectl_provider", "do", "name or comma-sep list of provider modules to use for selecting hosts")
-	hook          = env.String("remotectl_hook", "", "hook command to use as provider")
+	namespace     = env.String("remotectl_namespace", "", "")
 	prefixTmplStr = env.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
 
@@ -86,7 +86,7 @@ func main() {
 		p.Setup()
 
 		// Query the provider for hosts
-		extHosts, err := p.Query()
+		extHosts, err := p.Query(namespace, "")
 		fatalErr(err)
 		hosts = append(hosts, extHosts...)
 	}

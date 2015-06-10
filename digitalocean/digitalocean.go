@@ -11,7 +11,6 @@ import (
 )
 
 var doToken = env.String("do_access_token", "", "digitalocean PAT token")
-var doPrefix = env.String("do_prefix", "", "digitalocean droplet search prefix")
 
 func init() {
 	providers.Providers.Register(new(DOProvider), "do")
@@ -22,7 +21,7 @@ type DOProvider struct {
 	client *godo.Client
 }
 
-// Init will get the DO key and login.
+// Setup will get the DO key and login.
 func (p *DOProvider) Setup() {
 	doToken = strings.TrimSpace(doToken)
 	if len(doToken) == 0 {
@@ -47,9 +46,9 @@ func getPublicIP(droplet godo.Droplet) string {
 	return ""
 }
 
-// Get will retrieve all digitalocean droplets
+// Query will retrieve all digitalocean droplets
 // Rename to Query with namespace and query string as args.
-func (p *DOProvider) Query() ([]providers.Host, error) {
+func (p *DOProvider) Query(namespace, query string) ([]providers.Host, error) {
 	drops, err := p.dropletList()
 	if err != nil {
 		return nil, err
@@ -58,7 +57,7 @@ func (p *DOProvider) Query() ([]providers.Host, error) {
 	hosts := []providers.Host{}
 
 	for _, drop := range drops {
-		if len(doPrefix) != 0 && !strings.HasPrefix(drop.Name, doPrefix) {
+		if len(namespace) != 0 && !strings.HasPrefix(drop.Name, namespace) {
 			continue
 		}
 

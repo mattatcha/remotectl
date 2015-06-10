@@ -19,7 +19,7 @@ type StdinProvider struct {
 }
 
 func (*StdinProvider) Setup() {}
-func (*StdinProvider) Query() ([]providers.Host, error) {
+func (*StdinProvider) Query(namespace, query string) ([]providers.Host, error) {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
 		log.Fatal("error reading from stdin")
