@@ -31,10 +31,11 @@ var (
 
 	curUser, _ = user.Current()
 
-	sshPort       = env.Int("remotectl_port", 22, "ssh port to use. Note: all ports must be the same on hosts for a run.")
+	sshPort = env.Int("remotectl_port", 22, "ssh port to use. Note: all ports must be the same on hosts for a run.")
+	// Show default ident.
 	ident         = env.String("remotectl_identity", "", "private key file")
 	usr           = env.String("remotectl_user", strings.ToLower(curUser.Username), "user to connect as")
-	provider      = env.String("remotectl_provider", "do,stdin", "name or comma-sep list of provider modules to use for selecting hosts")
+	provider      = env.String("remotectl_provider", "do", "name or comma-sep list of provider modules to use for selecting hosts")
 	hook          = env.String("remotectl_hook", "", "hook command to use as provider")
 	prefixTmplStr = env.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
@@ -44,7 +45,9 @@ var (
 	verbose     = flag.Bool("verbose", false, "enable verbose status output")
 	localMode   = flag.Bool("local", false, "runs a local shell with <cmd> instead of ssh")
 	showList    = flag.Bool("list", false, "lists selected ips and names. /etc/hosts friendly output")
-	profile     = flag.String("profile", "", "sources a bash profile to load a config") // Maybe a name will default to a file in ~/.remotectl
+
+	// Use current working path.
+	profile = flag.String("profile", "", "sources a bash profile to load a config") // Maybe a name will default to a file in ~/.remotectl
 )
 
 func fatalErr(err error) {
@@ -78,10 +81,12 @@ func main() {
 		if p == nil {
 			log.Fatal("provider undefined")
 		}
-		// Call init on provider.
-		// This allows each provider to do any setup that is needed.
-		p.Init()
-		extHosts, err := p.Get()
+
+		// Setup the provider
+		p.Setup()
+
+		// Query the provider for hosts
+		extHosts, err := p.Query()
 		fatalErr(err)
 		hosts = append(hosts, extHosts...)
 	}
@@ -101,7 +106,7 @@ func main() {
 	group := &sync.WaitGroup{}
 	for _, host := range hosts {
 		group.Add(1)
-		go runSSHCmd(host, cfg, group)
+		go runSSHCmd(group, cfg, host)
 	}
 
 	// Wait until all ssh cmds are done running.
@@ -129,11 +134,12 @@ func newSSHClientConfig() (*ssh.ClientConfig, error) {
 	return cfg, nil
 }
 
-func hostLogger(host ext.Host, reader io.Reader) {
-	scanner := bufio.NewScanner(reader)
+func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
+	// Locking? One writer?
+	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
-		prefixTmpl.Execute(os.Stdout, host)
+		prefixTmpl.Execute(w, host)
 		fmt.Printf("%s \n", scanner.Text())
 	}
 
@@ -143,7 +149,7 @@ func hostLogger(host ext.Host, reader io.Reader) {
 
 }
 
-func runSSHCmd(host ext.Host, cfg *ssh.ClientConfig, group *sync.WaitGroup) {
+func runSSHCmd(group *sync.WaitGroup, cfg *ssh.ClientConfig, host ext.Host) {
 	defer group.Done()
 
 	// Append port to host.Addr
@@ -156,18 +162,18 @@ func runSSHCmd(host ext.Host, cfg *ssh.ClientConfig, group *sync.WaitGroup) {
 	fatalErr(err)
 	defer session.Close()
 
-	// Setup logging
+	// Setup host streaming
 	outPipe, err := session.StdoutPipe()
 	fatalErr(err)
 
 	errPipe, err := session.StderrPipe()
 	fatalErr(err)
 
-	go hostLogger(host, outPipe)
-	go hostLogger(host, errPipe)
+	go hostStreamer(host, outPipe, os.Stdout)
+	go hostStreamer(host, errPipe, os.Stderr)
 
-	// Run command that was passed into remotectl
-	session.Run(strings.Join(os.Args[1:], " "))
+	// Run command that was passed into remotectl - doesn't belong here
+	session.Run(strings.Join(flag.Args(), " "))
 }
 
 func helpCmd() {

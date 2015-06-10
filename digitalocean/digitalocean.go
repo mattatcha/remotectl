@@ -23,7 +23,7 @@ type DOProvider struct {
 }
 
 // Init will get the DO key and login.
-func (p *DOProvider) Init() {
+func (p *DOProvider) Setup() {
 	doToken = strings.TrimSpace(doToken)
 	if len(doToken) == 0 {
 		log.Fatal("access key required")
@@ -48,7 +48,8 @@ func getPublicIP(droplet godo.Droplet) string {
 }
 
 // Get will retrieve all digitalocean droplets
-func (p *DOProvider) Get() ([]providers.Host, error) {
+// Rename to Query with namespace and query string as args.
+func (p *DOProvider) Query() ([]providers.Host, error) {
 	drops, err := p.dropletList()
 	if err != nil {
 		return nil, err

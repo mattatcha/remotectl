@@ -2,8 +2,10 @@
 package providers
 
 type Provider interface {
-	Init()
-	Get() ([]Host, error)
+	// Setup
+	Setup()
+	// Hosts
+	Query() ([]Host, error)
 }
 
 type Host struct {

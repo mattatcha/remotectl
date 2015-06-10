@@ -18,8 +18,8 @@ func init() {
 type StdinProvider struct {
 }
 
-func (*StdinProvider) Init() {}
-func (*StdinProvider) Get() ([]providers.Host, error) {
+func (*StdinProvider) Setup() {}
+func (*StdinProvider) Query() ([]providers.Host, error) {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
 		log.Fatal("error reading from stdin")

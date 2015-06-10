@@ -7,9 +7,9 @@ import (
 
 func TestGet(t *testing.T) {
 	do := DOProvider{}
-	do.Init()
+	do.Setup()
 
-	hosts, err := do.Get()
+	hosts, err := do.Query()
 	if err != nil {
 		t.Error(err)
 	}
