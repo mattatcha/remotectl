@@ -23,10 +23,16 @@ remotectl <flags> <query> [--] <cmd>
 	remotectl -l app >> /etc/hosts
 
 	# manual host(s) via stdin
-	echo "1.2.3.4 myhost" | remotectl -- uptime
+	echo "1.2.3.4 myhost" | remotectl - uptime
 
 	# broadcast docker image to hosts tagged "app" via stdin
 	docker save myimage | remotectl app docker load
+
+	# wait for all "app" hosts to be ssh reachable
+	remotectl --wait app
+
+	# show configuration using a profile (no query or cmd)
+	remotectl -p myprofile
 
 ### flags
 
@@ -41,7 +47,7 @@ used for rsync, etc. also allows using system ssh.
 
 --list, -l
 lists selected ips and names. /etc/hosts friendly output.
-ignores <cmd>.
+ignores <cmd>. includes name alias with provider as tld.
 
 --random, -r
 	randomizes the list of hosts returned from query from any
@@ -56,6 +62,11 @@ sets environment variable to be set in remote shell.
 
 --profile, -p <filepath>
 sources a bash profile to load a config.
+
+--wait, -w [timeout-duration]
+	polls hosts until they're all ready to receive ssh commands.
+	can be used with or without <cmd>. <cmd> is only performed
+	when all hosts are ready.
 
 --version, -V
 --help, -h
@@ -102,6 +113,13 @@ REMOTECTL_PREFIX
 output hashed on an input string. default:
 {{cc .Name}}{{.Name}}:
 
+REMOTECTL_NAMESPACE
+	only use hosts from provider with name starting with this prefix.
+	namespace prefix is removed from names before being used.
+
+REMOTECTL_PROFILE
+	default profile to load if not provided.
+
 REMOTECTL_PROVIDER
 	name or comma-sep list of provider modules to use for selecting hosts
 	examples: do,ec2,consul
@@ -142,7 +160,7 @@ which ip to use (ie, private when using bastion/gateway)
 
 DO_PREFIX
 limit DO hosts to this named starting with prefix.
-allows queries within a namespace since DO has no tags/attributes/vpcs.
+allows queries within a namespace since DO has no tags/attributes/vpcs. see REMOTECTL_NAMESPACE
 
 
 
@@ -182,6 +200,7 @@ These config options:
 	REMOTECTL_BASHENV
 	REMOTECTL_AGENT
 	REMOTECTL_PREFIX
+	REMOTECTL_NAMESPACE
 
 These providers:
 	ec2
@@ -194,5 +213,6 @@ Add these features:
 	- Bastion/gateway
 	- Modes
 	- Random flag
+      - Wait flag
 
 Screencast!
