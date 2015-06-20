@@ -1,3 +1,4 @@
+// Package ssh is based on github.com/crosbymichael/slex/blob/master/ssh.go
 package ssh
 
 import (
@@ -21,7 +22,6 @@ type ClientConfig struct {
 type Session struct {
 	// conn is the ssh client that started the session.
 	conn *ssh.Client
-
 	*ssh.Session
 }
 
@@ -50,6 +50,8 @@ func (c *ClientConfig) NewSession(host string) (*Session, error) {
 	}, err
 }
 
+// RunWaitGroup will run a command and notify when done.
+// TODO: Remove this. It doesn't do enough to actually be useful.
 func (s *Session) RunWaitGroup(g *sync.WaitGroup, cmd string) error {
 	defer g.Done()
 
@@ -57,6 +59,7 @@ func (s *Session) RunWaitGroup(g *sync.WaitGroup, cmd string) error {
 }
 
 // NewClientConfig returns a config using an ssh agent.
+// Will also use an identity file later.
 func NewClientConfig(user string) (*ClientConfig, error) {
 	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {

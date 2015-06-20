@@ -61,20 +61,8 @@ func fields(s string) []string {
 	return strings.FieldsFunc(s, f)
 }
 
-// func parseArgs(arg ...string) (string, string) {
-// 	flag.
-// 	for i, a := range arg {
-//
-// 	}
-// }
-// func setupProviders(provider []string) {
-//
-// }
-// func queryProviders(provider []string)
-
 func main() {
-	// Show filename and line number in logs.
-	log.SetFlags(log.Lshortfile)
+	log.SetFlags(0)
 	flag.Parse()
 
 	switch {
@@ -89,9 +77,9 @@ func main() {
 	query := flag.Args()[0]
 	cmd := strings.Join(flag.Args()[1:], " ")
 
-	var hosts []ext.Host
 	// Get all of the hosts from each provider.
 	// This will have a way to filter soon.
+	var hosts []ext.Host
 	for _, p := range ext.Providers.Select(fields(provider)) {
 		if p == nil {
 			log.Fatal("unknown provider")
@@ -118,11 +106,15 @@ func main() {
 	cfg, err := sshutil.NewClientConfig(usr)
 	fatalErr(err)
 
+	log.Println("Connecting...")
 	var sessions []*sshutil.Session
 	for _, host := range hosts {
+
 		addr := fmt.Sprint(host.Addr, ":", sshPort)
 		sess, err := cfg.NewSession(addr)
-		fatalErr(err)
+		if err != nil {
+			log.Fatalln(host.Name+":", addr, err)
+		}
 
 		outPipe, err := sess.StdoutPipe()
 		fatalErr(err)
@@ -142,45 +134,15 @@ func main() {
 	group := &sync.WaitGroup{}
 	for _, s := range sessions {
 		group.Add(1)
+		// TODO: Close s when done.
 		go s.RunWaitGroup(group, cmd)
 	}
 	group.Wait()
-
-	// group := &sync.WaitGroup{}
-	// for _, host := range hosts {
-	// 	group.Add(1)
-	// 	go runSSHCmd(group, cfg.ClientConfig, host, cmd)
-	// }
-	//
-	// // Wait until all ssh cmds are done running.
-	// group.Wait()
 }
-
-// newSSHClientConfig returns a config using an ssh agent.
-// func newSSHClientConfig() (*ssh.ClientConfig, error) {
-// 	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	agent := agent.NewClient(sock)
-// 	signers, err := agent.Signers()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	cfg := &ssh.ClientConfig{
-// 		User: usr,
-// 		Auth: []ssh.AuthMethod{ssh.PublicKeys(signers...)},
-// 	}
-//
-// 	return cfg, nil
-// }
 
 func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 	// Locking? One writer?
 	scanner := bufio.NewScanner(r)
-
 	for scanner.Scan() {
 		prefixTmpl.Execute(w, host)
 		fmt.Println(scanner.Text())
@@ -191,32 +153,6 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 	}
 
 }
-
-// func runSSHCmd(group *sync.WaitGroup, cfg *ssh.ClientConfig, host ext.Host, cmd string) {
-// 	defer group.Done()
-//
-// 	// Append port to host.Addr
-// 	hostAddr := fmt.Sprintf("%s:%v", host.Addr, sshPort)
-// 	client, err := ssh.Dial("tcp", hostAddr, cfg)
-// 	fatalErr(err)
-//
-// 	// Create an ssh session.
-// 	session, err := client.NewSession()
-// 	fatalErr(err)
-// 	defer session.Close()
-//
-// 	// Setup host streaming
-// 	outPipe, err := session.StdoutPipe()
-// 	fatalErr(err)
-//
-// 	errPipe, err := session.StderrPipe()
-// 	fatalErr(err)
-//
-// 	go hostStreamer(host, outPipe, os.Stdout)
-// 	go hostStreamer(host, errPipe, os.Stderr)
-//
-// 	session.Run(cmd)
-// }
 
 func helpCmd() {
 	usage := `Usage: remotectl <flags> <query> [--] <cmd>
