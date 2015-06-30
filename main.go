@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"text/template"
-	"unicode"
 
 	ext "github.com/MattAitchison/remotectl/providers"
 	sshutil "github.com/MattAitchison/remotectl/ssh"
@@ -41,6 +40,7 @@ var (
 	showVersion = flag.Bool("version", false, "show version")
 	showHelp    = flag.Bool("help", false, "show this help message")
 	verbose     = flag.Bool("verbose", false, "enable verbose status output")
+	wait        = flag.Bool("wait", false, "wait for all hosts to be up")
 	localMode   = flag.Bool("local", false, "runs a local shell with <cmd> instead of ssh")
 	showList    = flag.Bool("list", false, "lists selected ips and names. /etc/hosts friendly output")
 
@@ -52,13 +52,6 @@ func fatalErr(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func fields(s string) []string {
-	f := func(c rune) bool {
-		return c == ',' || unicode.IsSpace(c)
-	}
-	return strings.FieldsFunc(s, f)
 }
 
 func main() {
@@ -77,10 +70,16 @@ func main() {
 	query := flag.Args()[0]
 	cmd := strings.Join(flag.Args()[1:], " ")
 
+	fmt.Println(flag.Args())
+	fmt.Println(flag.NArg())
+	fmt.Println(flag.NFlag())
+	fmt.Println(os.Args)
+
 	// Get all of the hosts from each provider.
 	// This will have a way to filter soon.
 	var hosts []ext.Host
-	for _, p := range ext.Providers.Select(fields(provider)) {
+
+	for _, p := range ext.Providers.Select(strings.Fields(provider)) {
 		if p == nil {
 			log.Fatal("unknown provider")
 		}
@@ -106,38 +105,50 @@ func main() {
 	cfg, err := sshutil.NewClientConfig(usr)
 	fatalErr(err)
 
-	log.Println("Connecting...")
-	var sessions []*sshutil.Session
+	sessions := make(chan *sshutil.Session, len(hosts))
 	for _, host := range hosts {
+		sessions <- setupSession(cfg, host)
 
-		addr := fmt.Sprint(host.Addr, ":", sshPort)
-		sess, err := cfg.NewSession(addr)
-		if err != nil {
-			log.Fatalln(host.Name+":", addr, err)
-		}
-
-		outPipe, err := sess.StdoutPipe()
-		fatalErr(err)
-
-		errPipe, err := sess.StderrPipe()
-		fatalErr(err)
-
-		go hostStreamer(host, outPipe, os.Stdout)
-		go hostStreamer(host, errPipe, os.Stderr)
-		sessions = append(sessions, sess)
 	}
 
-	if len(sessions) == 0 {
-		log.Fatal("no sessions")
-	}
+	// TODO: Implement wait
 
 	group := &sync.WaitGroup{}
-	for _, s := range sessions {
+	for {
+		s := <-sessions
+		// TODO: Does this actually work?
+		defer s.Close()
+
 		group.Add(1)
-		// TODO: Close s when done.
 		go s.RunWaitGroup(group, cmd)
 	}
-	group.Wait()
+
+	// group := &sync.WaitGroup{}
+	// for _, s := range sessions {
+	// 	group.Add(1)
+	//
+	// 	go s.RunWaitGroup(group, cmd)
+	// }
+	// group.Wait()
+}
+
+func setupSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
+	addr := fmt.Sprint(host.Addr, ":", sshPort)
+	s, err := cfg.NewSession(addr)
+	if err != nil {
+		log.Fatalln(host.Name+":", addr, err)
+	}
+
+	outPipe, err := s.StdoutPipe()
+	fatalErr(err)
+
+	errPipe, err := s.StderrPipe()
+	fatalErr(err)
+
+	go hostStreamer(host, outPipe, os.Stdout)
+	go hostStreamer(host, errPipe, os.Stderr)
+
+	return s
 }
 
 func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
