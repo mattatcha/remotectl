@@ -216,3 +216,8 @@ Add these features:
       - Wait flag
 
 Screencast!
+
+
+## License
+
+MIT
