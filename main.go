@@ -16,6 +16,7 @@ import (
 	sshutil "github.com/MattAitchison/remotectl/ssh"
 
 	// Enabled Providers
+	_ "github.com/MattAitchison/remotectl/aws"
 	_ "github.com/MattAitchison/remotectl/digitalocean"
 	_ "github.com/MattAitchison/remotectl/stdin"
 
