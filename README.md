@@ -23,7 +23,7 @@ remotectl <flags> <query> [--] <cmd>
 	remotectl -l app >> /etc/hosts
 
 	# manual host(s) via stdin
-	echo "1.2.3.4 myhost" | remotectl - uptime
+	echo "1.2.3.4 myhost" | remotectl -- uptime
 
 	# broadcast docker image to hosts tagged "app" via stdin
 	docker save myimage | remotectl app docker load
@@ -124,12 +124,7 @@ REMOTECTL_PROVIDER
 	name or comma-sep list of provider modules to use for selecting hosts
 	examples: do,ec2,consul
 
-REMOTECTL_HOOK
-hook command to use as provider.
-command is called in two ways:
-<command> gateway <query>
-	<command> hosts <query> [gateway]
-docs TBD
+
 
 ## query parsing
 
@@ -180,10 +175,8 @@ And these config options:
 	REMOTECTL_IDENTITY
 	REMOTECTL_USER
 	REMOTECTL_PROVIDER
-	REMOTECTL_HOOK
 
 And these providers:
-	(hook)
 	digitalocean
 
 Silent release on Github.
@@ -213,7 +206,7 @@ Add these features:
 	- Bastion/gateway
 	- Modes
 	- Random flag
-      - Wait flag
+  - Wait flag
 
 Screencast!
 
