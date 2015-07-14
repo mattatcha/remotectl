@@ -101,7 +101,7 @@ func main() {
 	}
 
 	if *showList {
-		log.Println(hosts)
+		printHosts(os.Stderr, hosts)
 		return
 	}
 
@@ -119,6 +119,7 @@ func main() {
 				wg.Done()
 			}()
 
+			// Should probably use something else other than run
 			s.Run(cmd)
 		}(host)
 	}
@@ -157,6 +158,12 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 		log.Fatalf("err streaming logs %s", err)
 	}
 
+}
+
+func printHosts(w io.Writer, hosts []ext.Host) {
+	for _, h := range hosts {
+		fmt.Fprintf(w, "%-20s %s\n", h.Addr, h.Name)
+	}
 }
 
 func helpCmd() {
