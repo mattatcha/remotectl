@@ -2,9 +2,7 @@
 package providers
 
 type Provider interface {
-	// Setup
 	Setup()
-	// Hosts
 	Query(namespace, query string) ([]Host, error)
 }
 

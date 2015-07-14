@@ -60,6 +60,9 @@ func (p *DOProvider) Query(namespace, query string) ([]providers.Host, error) {
 		if len(namespace) != 0 && !strings.HasPrefix(drop.Name, namespace) {
 			continue
 		}
+		if len(query) != 0 && !strings.HasPrefix(drop.Name, query) {
+			continue
+		}
 
 		host := providers.Host{
 			Name: drop.Name,
