@@ -20,7 +20,7 @@ import (
 	_ "github.com/MattAitchison/remotectl/digitalocean"
 	_ "github.com/MattAitchison/remotectl/stdin"
 
-	env "github.com/MattAitchison/envconfig"
+	"github.com/MattAitchison/envconfig"
 )
 
 var (
@@ -29,20 +29,17 @@ var (
 
 	curUser, _ = user.Current()
 
-	sshPort = env.Int("remotectl_port", 22, "ssh port to use. Note: all ports must be the same on hosts for a run.")
+	sshPort = envconfig.Int("remotectl_port", 22, "ssh port to use. Note: all ports must be the same on hosts for a run.")
 	// Show default ident.
-	ident         = env.String("remotectl_identity", "", "private key file")
-	usr           = env.String("remotectl_user", strings.ToLower(curUser.Username), "user to connect as")
-	provider      = env.String("remotectl_provider", "do", "name or comma-sep list of provider modules to use for selecting hosts")
-	namespace     = env.String("remotectl_namespace", "", "")
-	prefixTmplStr = env.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
+	ident         = envconfig.String("remotectl_identity", "", "private key file")
+	usr           = envconfig.String("remotectl_user", curUser.Username, "user to connect as")
+	provider      = envconfig.String("remotectl_provider", "do", "name or comma-sep list of provider modules to use for selecting hosts")
+	namespace     = envconfig.String("remotectl_namespace", "", "")
+	prefixTmplStr = envconfig.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
 
 	showVersion = flag.Bool("version", false, "show version")
 	showHelp    = flag.Bool("help", false, "show this help message")
-	verbose     = flag.Bool("verbose", false, "enable verbose status output")
-	wait        = flag.Bool("wait", false, "wait for all hosts to be up")
-	localMode   = flag.Bool("local", false, "runs a local shell with <cmd> instead of ssh")
 	showList    = flag.Bool("list", false, "lists selected ips and names. /etc/hosts friendly output")
 
 	// Use current working path.
@@ -55,6 +52,20 @@ func fatalErr(err error) {
 	}
 }
 
+func parseArgs(args []string) (q, cmd string) {
+	i := flag.NFlag() + 1
+
+	cmd = strings.Join(flag.Args(), " ")
+	if len(args) <= i {
+		return "", cmd
+	}
+
+	if args[i] != "--" {
+		return flag.Args()[0], strings.Join(flag.Args()[1:], " ")
+	}
+
+	return "", cmd
+}
 func main() {
 	log.SetFlags(0)
 	flag.Parse()
@@ -68,18 +79,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	query := flag.Args()[0]
-	cmd := strings.Join(flag.Args()[1:], " ")
+	query, cmd := parseArgs(os.Args)
 
-	fmt.Println(flag.Args())
-	fmt.Println(flag.NArg())
-	fmt.Println(flag.NFlag())
-	fmt.Println(os.Args)
-
-	// Get all of the hosts from each provider.
-	// This will have a way to filter soon.
 	var hosts []ext.Host
-
 	for _, p := range ext.Providers.Select(strings.Fields(provider)) {
 		if p == nil {
 			log.Fatal("unknown provider")
@@ -106,31 +108,21 @@ func main() {
 	cfg, err := sshutil.NewClientConfig(usr)
 	fatalErr(err)
 
-	sessions := make(chan *sshutil.Session, len(hosts))
+	var wg sync.WaitGroup
+	wg.Add(len(hosts))
 	for _, host := range hosts {
-		sessions <- setupSession(cfg, host)
+		go func(h ext.Host) {
+			s := setupSession(cfg, h)
 
+			defer func() {
+				s.Close()
+				wg.Done()
+			}()
+
+			s.Run(cmd)
+		}(host)
 	}
-
-	// TODO: Implement wait
-
-	group := &sync.WaitGroup{}
-	for {
-		s := <-sessions
-		// TODO: Does this actually work?
-		defer s.Close()
-
-		group.Add(1)
-		go s.RunWaitGroup(group, cmd)
-	}
-
-	// group := &sync.WaitGroup{}
-	// for _, s := range sessions {
-	// 	group.Add(1)
-	//
-	// 	go s.RunWaitGroup(group, cmd)
-	// }
-	// group.Wait()
+	wg.Wait()
 }
 
 func setupSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
@@ -146,6 +138,7 @@ func setupSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
 	errPipe, err := s.StderrPipe()
 	fatalErr(err)
 
+	// Don't like this
 	go hostStreamer(host, outPipe, os.Stdout)
 	go hostStreamer(host, errPipe, os.Stderr)
 
@@ -175,7 +168,7 @@ Providers:
 Environment Vars:
 `
 	fmt.Printf(usage, ext.Providers.Names())
-	env.PrintDefaults()
+	envconfig.PrintDefaults()
 	fmt.Println("\nFlags:")
 	flag.PrintDefaults()
 
