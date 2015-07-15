@@ -19,9 +19,7 @@ import (
 	sshutil "github.com/MattAitchison/remotectl/ssh"
 
 	// Enabled Providers
-	_ "github.com/MattAitchison/remotectl/aws"
 	_ "github.com/MattAitchison/remotectl/digitalocean"
-	_ "github.com/MattAitchison/remotectl/stdin"
 )
 
 var (
@@ -70,7 +68,7 @@ func main() {
 	log.SetFlags(0)
 	flag.Parse()
 
-	if len(*profile) > 0 {
+	if *profile != "" {
 		path := filepath.Clean(*profile)
 		path, err := filepath.Abs(path)
 		fatalErr(err)
@@ -96,7 +94,7 @@ func main() {
 		}
 
 		// Setup the provider
-		p.Setup()
+		fatalErr(p.Setup())
 
 		// Query the provider for hosts
 		extHosts, err := p.Query(namespace, query)
@@ -110,7 +108,7 @@ func main() {
 	}
 
 	if *showList {
-		printHosts(os.Stderr, hosts)
+		printHosts(os.Stdout, hosts)
 		return
 	}
 
@@ -160,7 +158,7 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		prefixTmpl.Execute(w, host)
-		fmt.Println(scanner.Text())
+		fmt.Fprintln(w, scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {

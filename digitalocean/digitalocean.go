@@ -1,7 +1,7 @@
 package digitalocean
 
 import (
-	"log"
+	"errors"
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
@@ -9,6 +9,13 @@ import (
 	"github.com/MattAitchison/remotectl/providers"
 	"github.com/digitalocean/godo"
 )
+
+// name.tag1.tag2
+// web.1
+// web.prod.1
+// namespace-web.1
+
+// Match, Exact name, tags,
 
 func init() {
 	providers.Providers.Register(new(DOProvider), "do")
@@ -20,11 +27,10 @@ type DOProvider struct {
 }
 
 // Setup will get the DO key and login.
-func (p *DOProvider) Setup() {
+func (p *DOProvider) Setup() error {
 	doToken := env.String("do_access_token", "", "digitalocean PAT token")
-	doToken = strings.TrimSpace(doToken)
-	if len(doToken) == 0 {
-		log.Fatal("access key required")
+	if doToken == "" {
+		return errors.New("access key required")
 	}
 
 	t := &oauth.Transport{
@@ -32,6 +38,8 @@ func (p *DOProvider) Setup() {
 	}
 
 	p.client = godo.NewClient(t.Client())
+
+	return nil
 }
 
 func getPublicIP(droplet godo.Droplet) string {
@@ -56,12 +64,12 @@ func (p *DOProvider) Query(namespace, query string) ([]providers.Host, error) {
 	hosts := []providers.Host{}
 
 	for _, drop := range drops {
-		if len(namespace) != 0 && !strings.HasPrefix(drop.Name, namespace) {
+		if namespace != "" && !strings.HasPrefix(drop.Name, namespace) {
 			continue
 		}
 
 		name := strings.TrimPrefix(drop.Name, namespace)
-		if len(query) != 0 && !strings.HasPrefix(name, query) {
+		if query != "" && !strings.HasPrefix(name, query) {
 			continue
 		}
 

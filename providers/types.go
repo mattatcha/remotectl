@@ -2,10 +2,11 @@
 package providers
 
 type Provider interface {
-	Setup()
+	Setup() error
 	Query(namespace, query string) ([]Host, error)
 }
 
+// remove extpoints
 type Host struct {
 	Name     string
 	Addr     string

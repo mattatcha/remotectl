@@ -202,7 +202,8 @@ ex: REMOTECTL_MODE=group:4:2s
 	randomizes the list of hosts returned from query from any
 	sorting or bias of the provider.
 
---wait, -w [timeout-duration]
+--timeout -t <wait-duration> - global timeout val
+--wait, -w
 	polls hosts until they're all ready to receive ssh commands.
 	can be used with or without <cmd>. <cmd> is only performed
 	when all hosts are ready.

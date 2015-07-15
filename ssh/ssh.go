@@ -94,7 +94,7 @@ func NewClientConfig(ident string, user string) (*ClientConfig, error) {
 		},
 	}
 
-	if len(ident) > 0 {
+	if ident == "" {
 		s, err := pemSigner(ident)
 		if err != nil {
 			return nil, err
