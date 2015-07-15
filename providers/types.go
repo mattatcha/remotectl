@@ -7,8 +7,9 @@ type Provider interface {
 }
 
 type Host struct {
-	Name  string
-	Addr  string
-	Index int
-	Group int
+	Name     string
+	Addr     string
+	Provider string
+	Index    int
+	Group    int
 }

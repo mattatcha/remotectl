@@ -67,8 +67,9 @@ func (p *DOProvider) Query(namespace, query string) ([]providers.Host, error) {
 		}
 
 		host := providers.Host{
-			Name: drop.Name,
-			Addr: getPublicIP(drop),
+			Name:     drop.Name,
+			Provider: "do",
+			Addr:     getPublicIP(drop),
 		}
 
 		hosts = append(hosts, host)

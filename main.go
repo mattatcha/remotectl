@@ -66,6 +66,7 @@ func parseArgs(args []string) (q, cmd string) {
 
 	return "", cmd
 }
+
 func main() {
 	log.SetFlags(0)
 	flag.Parse()
@@ -93,6 +94,7 @@ func main() {
 		// Query the provider for hosts
 		extHosts, err := p.Query(namespace, query)
 		fatalErr(err)
+
 		hosts = append(hosts, extHosts...)
 	}
 
@@ -162,7 +164,7 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 
 func printHosts(w io.Writer, hosts []ext.Host) {
 	for _, h := range hosts {
-		fmt.Fprintf(w, "%-20s %s\n", h.Addr, h.Name)
+		fmt.Fprintf(w, "%-20s %s.%s\n", h.Addr, h.Name, h.Provider)
 	}
 }
 
