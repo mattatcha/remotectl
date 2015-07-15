@@ -8,10 +8,13 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strings"
 	"sync"
 	"text/template"
 
+	"github.com/MattAitchison/bashenv"
+	"github.com/MattAitchison/envconfig"
 	ext "github.com/MattAitchison/remotectl/providers"
 	sshutil "github.com/MattAitchison/remotectl/ssh"
 
@@ -19,8 +22,6 @@ import (
 	_ "github.com/MattAitchison/remotectl/aws"
 	_ "github.com/MattAitchison/remotectl/digitalocean"
 	_ "github.com/MattAitchison/remotectl/stdin"
-
-	"github.com/MattAitchison/envconfig"
 )
 
 var (
@@ -37,13 +38,11 @@ var (
 	namespace     = envconfig.String("remotectl_namespace", "", "")
 	prefixTmplStr = envconfig.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
+	profile       = flag.String("profile", "", "bash profile to source for config") // Maybe a name will default to a file in ~/.remotectl
 
 	showVersion = flag.Bool("version", false, "show version")
 	showHelp    = flag.Bool("help", false, "show this help message")
 	showList    = flag.Bool("list", false, "lists selected ips and names. /etc/hosts friendly output")
-
-	// Use current working path.
-	profile = flag.String("profile", "", "sources a bash profile to load a config") // Maybe a name will default to a file in ~/.remotectl
 )
 
 func fatalErr(err error) {
@@ -70,6 +69,14 @@ func parseArgs(args []string) (q, cmd string) {
 func main() {
 	log.SetFlags(0)
 	flag.Parse()
+
+	if len(*profile) > 0 {
+		path := filepath.Clean(*profile)
+		path, err := filepath.Abs(path)
+		fatalErr(err)
+
+		fatalErr(bashenv.Source(path))
+	}
 
 	switch {
 	case *showHelp:

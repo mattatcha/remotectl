@@ -10,8 +10,6 @@ import (
 	"github.com/digitalocean/godo"
 )
 
-var doToken = env.String("do_access_token", "", "digitalocean PAT token")
-
 func init() {
 	providers.Providers.Register(new(DOProvider), "do")
 }
@@ -23,6 +21,7 @@ type DOProvider struct {
 
 // Setup will get the DO key and login.
 func (p *DOProvider) Setup() {
+	doToken := env.String("do_access_token", "", "digitalocean PAT token")
 	doToken = strings.TrimSpace(doToken)
 	if len(doToken) == 0 {
 		log.Fatal("access key required")
