@@ -114,7 +114,7 @@ func main() {
 		return
 	}
 
-	cfg, err := sshutil.NewClientConfig(usr)
+	cfg, err := sshutil.NewClientConfig(ident, usr)
 	fatalErr(err)
 
 	var wg sync.WaitGroup

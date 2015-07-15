@@ -2,6 +2,7 @@
 package ssh
 
 import (
+	"io/ioutil"
 	"net"
 	"os"
 	"sync"
@@ -14,8 +15,9 @@ import (
 // and the ssh agent to forward authentication requests
 type ClientConfig struct {
 	// agent is the connection to the ssh agent
-	agent agent.Agent
+	a agent.Agent
 	*ssh.ClientConfig
+	ForwardAgent bool
 }
 
 // Session stores the open session and connection to execute a command.
@@ -33,14 +35,15 @@ func (c *ClientConfig) NewSession(host string) (*Session, error) {
 		return nil, err
 	}
 
-	if c.agent != nil {
-		if err := agent.ForwardToAgent(conn, c.agent); err != nil {
+	if c.a != nil && c.ForwardAgent {
+		if err := agent.ForwardToAgent(conn, c.a); err != nil {
 			return nil, err
 		}
 	}
 
 	session, err := conn.NewSession()
-	if c.agent != nil {
+	// Move this up
+	if c.a != nil && c.ForwardAgent {
 		err = agent.RequestAgentForwarding(session)
 	}
 
@@ -58,42 +61,57 @@ func (s *Session) RunWaitGroup(g *sync.WaitGroup, cmd string) error {
 	return s.Run(cmd)
 }
 
-// NewClientConfig returns a config using an ssh agent.
-// Will also use an identity file later.
-func NewClientConfig(user string) (*ClientConfig, error) {
+func agentSigners() (*agent.Agent, []ssh.Signer, error) {
 	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	agent := agent.NewClient(sock)
-	signers, err := agent.Signers()
+	a := agent.NewClient(sock)
+	signers, err := a.Signers()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &a, signers, nil
+}
+
+func pemSigner(file string) (ssh.Signer, error) {
+	pemBytes, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
 
+	return ssh.ParsePrivateKey(pemBytes)
+}
+
+// NewClientConfig returns a config using an ssh agent unless ident is not empty.
+func NewClientConfig(ident string, user string) (*ClientConfig, error) {
+	// This should all be able to be simplified by using PublicKeysCallback
 	cfg := &ClientConfig{
-		agent: agent,
 		ClientConfig: &ssh.ClientConfig{
 			User: user,
-			Auth: []ssh.AuthMethod{ssh.PublicKeys(signers...)},
 		},
 	}
 
+	if len(ident) > 0 {
+		s, err := pemSigner(ident)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.ClientConfig.Auth = []ssh.AuthMethod{ssh.PublicKeys(s)}
+
+		return cfg, nil
+	}
+
+	a, s, err := agentSigners()
+	if err != nil {
+		return nil, err
+	}
+
+	cfg.a = *a
+	cfg.ClientConfig.Auth = []ssh.AuthMethod{ssh.PublicKeys(s...)}
+
 	return cfg, nil
 }
-
-//
-// func WaitForSSH(addr string) error {
-// 	for {
-// 		log.Printf("testing TCP connection to: %s", addr)
-// 		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
-//
-// 		if err != nil {
-// 			continue
-// 		}
-//
-// 		defer conn.Close()
-// 		return nil
-// 	}
-// }
