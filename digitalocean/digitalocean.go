@@ -60,7 +60,9 @@ func (p *DOProvider) Query(namespace, query string) ([]providers.Host, error) {
 		if len(namespace) != 0 && !strings.HasPrefix(drop.Name, namespace) {
 			continue
 		}
-		if len(query) != 0 && !strings.HasPrefix(drop.Name, query) {
+
+		name := strings.TrimPrefix(drop.Name, namespace)
+		if len(query) != 0 && !strings.HasPrefix(name, query) {
 			continue
 		}
 
