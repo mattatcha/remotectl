@@ -22,86 +22,32 @@ remotectl <flags> <query> [--] <cmd>
 	# add hosts tagged "app" into /etc/hosts
 	remotectl -l app >> /etc/hosts
 
-	# manual host(s) via stdin
-	echo "1.2.3.4 myhost" | remotectl -- uptime
-
-	# broadcast docker image to hosts tagged "app" via stdin
-	docker save myimage | remotectl app docker load
-
-	# wait for all "app" hosts to be ssh reachable
-	remotectl --wait app
-
 	# show configuration using a profile (no query or cmd)
 	remotectl -p myprofile
 
 ### flags
 
---verbose, -v
-shows status output more like capistrano or fabric.
-otherwise, focuses only on output of remote hosts.
-
---local, -L
-doesn't use ssh, but shells out locally to run <cmd>.
-replaces string "{}" in <cmd> with each host ip.
-used for rsync, etc. also allows using system ssh.
-
 --list, -l
 lists selected ips and names. /etc/hosts friendly output.
 ignores <cmd>. includes name alias with provider as tld.
 
---random, -r
-	randomizes the list of hosts returned from query from any
-	sorting or bias of the provider.
-
---first, -1
-	limits list of hosts returned to just the first host.
-	can be combined with --random to pick random host.
-
---env, -e <key=value>
-sets environment variable to be set in remote shell.
-
 --profile, -p <filepath>
 sources a bash profile to load a config.
-
---wait, -w [timeout-duration]
-	polls hosts until they're all ready to receive ssh commands.
-	can be used with or without <cmd>. <cmd> is only performed
-	when all hosts are ready.
 
 --version, -V
 --help, -h
 
 ### config
 
-REMOTECTL_GATEWAY
-selector to use as bastion host.
-optional prefix "<user>@" to specify bastion user.
-
-REMOTECTL_SHELLENV
-	file to copy and source on remote side
-
 REMOTECTL_IDENTITY
 	private key file. openssh default
 
-REMOTECTL_AGENT
-	boolean to forward agent. defaults to true?
 
 REMOTECTL_USER
 	user to connect as. defaults to current user.
 
 REMOTECTL_PORT
 	ssh port to use. all ports must be the same on hosts for a run.
-
-REMOTECTL_MODE
-	execution mode options (based on ruby sshkit):
-		parallel
-			runs commands in parallel. default.
-		sequence[:<wait-duration>]
-			runs in sequence with option duration between.
-			ex: REMOTECTL_MODE=sequence:2s
-		groups:<limit>[:<wait-duration>]
-			runs in parallel on <limit> hosts, grouped sequential.
-ex: REMOTECTL_MODE=group:4:2s
 
 REMOTECTL_PREFIX
 	prefix template for host output. uses go templates with values:
@@ -152,15 +98,13 @@ which ip to use (ie, private when using bastion/gateway)
 
 ### digital ocean
 
+DO_ACCESS_TOKEN
 
-DO_PREFIX
+REMOTECTL_NAMESPACE
 limit DO hosts to this named starting with prefix.
 allows queries within a namespace since DO has no tags/attributes/vpcs. see REMOTECTL_NAMESPACE
 
-
-
 # DEV PLAN
-
 
 ## MVP, 0.1.0
 
@@ -200,6 +144,34 @@ These providers:
 
 Use with clients. Public mentions on Twitter.
 
+REMOTECTL_SHELLENV
+	file to copy and source on remote side
+
+REMOTECTL_AGENT
+	boolean to forward agent. defaults to true?
+
+	# broadcast docker image to hosts tagged "app" via stdin
+	docker save myimage | remotectl app docker load
+
+	# wait for all "app" hosts to be ssh reachable
+	remotectl --wait app
+
+	--verbose, -v
+	shows status output more like capistrano or fabric.
+	otherwise, focuses only on output of remote hosts.
+
+--local, -L
+doesn't use ssh, but shells out locally to run <cmd>.
+replaces string "{}" in <cmd> with each host ip.
+used for rsync, etc. also allows using system ssh.
+
+--first, -1
+	limits list of hosts returned to just the first host.
+	can be combined with --random to pick random host.
+
+--env, -e <key=value>
+sets environment variable to be set in remote shell.
+
 ## Public release, 0.3.0
 
 Add these features:
@@ -210,6 +182,30 @@ Add these features:
 
 Screencast!
 
+REMOTECTL_GATEWAY
+selector to use as bastion host.
+optional prefix "<user>@" to specify bastion user.
+
+REMOTECTL_MODE
+	execution mode options (based on ruby sshkit):
+		parallel
+			runs commands in parallel. default.
+		sequence[:<wait-duration>]
+			runs in sequence with option duration between.
+			ex: REMOTECTL_MODE=sequence:2s
+		groups:<limit>[:<wait-duration>]
+			runs in parallel on <limit> hosts, grouped sequential.
+ex: REMOTECTL_MODE=group:4:2s
+
+
+--random, -r
+	randomizes the list of hosts returned from query from any
+	sorting or bias of the provider.
+
+--wait, -w [timeout-duration]
+	polls hosts until they're all ready to receive ssh commands.
+	can be used with or without <cmd>. <cmd> is only performed
+	when all hosts are ready.
 
 ## License
 
