@@ -28,40 +28,40 @@ var (
 
 	curUser, _ = user.Current()
 
-	sshPort = envconfig.Int("remotectl_port", 22, "ssh port to use. Note: all ports must be the same on hosts for a run.")
-	// Show default ident.
-	ident         = envconfig.String("remotectl_identity", "", "private key file")
+	sshPort       = envconfig.Int("remotectl_port", 22, "port used to connect to each host")
+	_             = envconfig.String("SSH_AUTH_SOCK", "", "ssh agent socket")
+	ident         = envconfig.String("remotectl_identity", "", "file from which the identity (private key) for public key authentication is read.")
 	usr           = envconfig.String("remotectl_user", curUser.Username, "user to connect as")
-	provider      = envconfig.String("remotectl_provider", "do", "name or comma-sep list of provider modules to use for selecting hosts")
-	namespace     = envconfig.String("remotectl_namespace", "", "")
+	provider      = envconfig.String("remotectl_provider", "do", "comma-sep list of provider modules to use for selecting hosts")
+	namespace     = envconfig.String("remotectl_namespace", "", "namespace is a prefix which is matched and removed from hosts")
 	prefixTmplStr = envconfig.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
-	profile       = flag.String("profile", "", "bash profile to source for config") // Maybe a name will default to a file in ~/.remotectl
+	profile       = flag.String("profile", "", "bash profile to source for env config") // Maybe a name will default to a file in ~/.remotectl
 
 	showVersion = flag.Bool("version", false, "show version")
 	showHelp    = flag.Bool("help", false, "show this help message")
 	showList    = flag.Bool("list", false, "lists selected ips and names. /etc/hosts friendly output")
 )
 
-func fatalErr(err error) {
+func fatal(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func parseArgs(args []string) (q, cmd string) {
+// The following command `remotectl -profile test.sh -list` would result in
+// len(args) <= i returning false.
+func parseArgs(args []string) (query, cmd string) {
 	i := flag.NFlag() + 1
 
 	cmd = strings.Join(flag.Args(), " ")
-	if len(args) <= i {
-		return "", cmd
+
+	if len(args) > i && args[i] != "--" {
+		query = flag.Args()[0]
+		cmd = strings.Join(flag.Args()[1:], " ")
 	}
 
-	if args[i] != "--" {
-		return flag.Args()[0], strings.Join(flag.Args()[1:], " ")
-	}
-
-	return "", cmd
+	return query, cmd
 }
 
 func main() {
@@ -71,9 +71,9 @@ func main() {
 	if *profile != "" {
 		path := filepath.Clean(*profile)
 		path, err := filepath.Abs(path)
-		fatalErr(err)
+		fatal(err)
 
-		fatalErr(bashenv.Source(path))
+		fatal(bashenv.Source(path))
 	}
 
 	switch {
@@ -81,7 +81,7 @@ func main() {
 		helpCmd()
 		os.Exit(0)
 	case *showVersion:
-		fmt.Printf("remotectl: %s", Version)
+		log.Printf("remotectl: %s", Version)
 		os.Exit(0)
 	}
 
@@ -94,17 +94,17 @@ func main() {
 		}
 
 		// Setup the provider
-		fatalErr(p.Setup())
+		fatal(p.Setup())
 
 		// Query the provider for hosts
 		extHosts, err := p.Query(namespace, query)
-		fatalErr(err)
+		fatal(err)
 
 		hosts = append(hosts, extHosts...)
 	}
 
 	if len(hosts) == 0 {
-		log.Fatal("no hosts")
+		log.Fatal("no hosts selected")
 	}
 
 	if *showList {
@@ -113,13 +113,13 @@ func main() {
 	}
 
 	cfg, err := sshutil.NewClientConfig(ident, usr)
-	fatalErr(err)
+	fatal(err)
 
 	var wg sync.WaitGroup
 	wg.Add(len(hosts))
 	for _, host := range hosts {
 		go func(h ext.Host) {
-			s := setupSession(cfg, h)
+			s := newSession(cfg, h)
 
 			defer func() {
 				s.Close()
@@ -127,24 +127,26 @@ func main() {
 			}()
 
 			// Should probably use something else other than run
+			// Using run and stdoutpipe/stderrpipe could result in lost output
 			s.Run(cmd)
 		}(host)
 	}
 	wg.Wait()
 }
 
-func setupSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
+func newSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
 	addr := fmt.Sprint(host.Addr, ":", sshPort)
 	s, err := cfg.NewSession(addr)
 	if err != nil {
-		log.Fatalln(host.Name+":", addr, err)
+		log.Printf("error connecting to host: %s with user: %s", host.Name, cfg.User)
+		log.Fatal(err)
 	}
 
 	outPipe, err := s.StdoutPipe()
-	fatalErr(err)
+	fatal(err)
 
 	errPipe, err := s.StderrPipe()
-	fatalErr(err)
+	fatal(err)
 
 	// Don't like this
 	go hostStreamer(host, outPipe, os.Stdout)

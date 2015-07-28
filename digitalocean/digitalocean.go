@@ -10,13 +10,6 @@ import (
 	"github.com/digitalocean/godo"
 )
 
-// name.tag1.tag2
-// web.1
-// web.prod.1
-// namespace-web.1
-
-// Match, Exact name, tags,
-
 func init() {
 	providers.Providers.Register(new(DOProvider), "do")
 }
@@ -26,7 +19,7 @@ type DOProvider struct {
 	client *godo.Client
 }
 
-// Setup will get the DO key and login.
+// Setup will get the create a new client with an access_token.
 func (p *DOProvider) Setup() error {
 	doToken := env.String("do_access_token", "", "digitalocean PAT token")
 	if doToken == "" {
@@ -54,22 +47,20 @@ func getPublicIP(droplet godo.Droplet) string {
 }
 
 // Query will retrieve all digitalocean droplets
-// Rename to Query with namespace and query string as args.
-func (p *DOProvider) Query(namespace, query string) ([]providers.Host, error) {
+func (p *DOProvider) Query(namespace, pattern string) ([]providers.Host, error) {
 	drops, err := p.dropletList()
 	if err != nil {
 		return nil, err
 	}
 
-	hosts := []providers.Host{}
-
+	var hosts []providers.Host
 	for _, drop := range drops {
 		if namespace != "" && !strings.HasPrefix(drop.Name, namespace) {
 			continue
 		}
 
 		name := strings.TrimPrefix(drop.Name, namespace)
-		if query != "" && !strings.HasPrefix(name, query) {
+		if !providers.Match(pattern, name) {
 			continue
 		}
 

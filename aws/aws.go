@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"errors"
 	"log"
 
 	env "github.com/MattAitchison/envconfig"
@@ -22,7 +23,7 @@ type AWSProvider struct {
 }
 
 // Setup will get the DO key and login.
-func (p *AWSProvider) Setup() {
+func (p *AWSProvider) Setup() error {
 	p.svc = ec2.New(&aws.Config{Region: region})
 	// credentials.Get()
 	//
@@ -34,6 +35,7 @@ func (p *AWSProvider) Setup() {
 	// t := &oauth.Transport{
 	// 	Token: &oauth.Token{AccessToken: doToken},
 	// }
+	return errors.New("aws provider setup error")
 
 }
 

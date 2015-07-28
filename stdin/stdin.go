@@ -18,7 +18,7 @@ func init() {
 type StdinProvider struct {
 }
 
-func (*StdinProvider) Setup() {}
+func (*StdinProvider) Setup() error { return nil }
 func (*StdinProvider) Query(namespace, query string) ([]providers.Host, error) {
 	fi, err := os.Stdin.Stat()
 	if err != nil {

@@ -41,6 +41,36 @@ func TestArgParse(t *testing.T) {
 			query: "web",
 			cmd:   "uname",
 		},
+		{
+			args:  []string{},
+			query: "",
+			cmd:   "",
+		},
+		{
+			args: []string{
+				"--list",
+			},
+			query: "",
+			cmd:   "",
+		},
+		{
+			args: []string{
+				"--list",
+				"--",
+				"test",
+			},
+			query: "",
+			cmd:   "test",
+		},
+		{
+			args: []string{
+				"--profile",
+				"test.sh",
+				"--list",
+			},
+			query: "",
+			cmd:   "",
+		},
 	}
 
 	for k, a := range tests {
@@ -51,10 +81,10 @@ func TestArgParse(t *testing.T) {
 		q, c := parseArgs(args)
 
 		if q != a.query {
-			t.Errorf("%v query: expected: %s got: %s", k, a.query, q)
+			t.Errorf("test: %v query: expected: %s got: %s", k, a.query, q)
 		}
 		if c != a.cmd {
-			t.Errorf("%v cmd: expected: %s got: %s", k, a.cmd, q)
+			t.Errorf("test: %v cmd: expected: %s got: %s", k, a.cmd, q)
 		}
 	}
 }

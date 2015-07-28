@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"sync"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -53,14 +52,6 @@ func (c *ClientConfig) NewSession(host string) (*Session, error) {
 	}, err
 }
 
-// RunWaitGroup will run a command and notify when done.
-// TODO: Remove this. It doesn't do enough to actually be useful.
-func (s *Session) RunWaitGroup(g *sync.WaitGroup, cmd string) error {
-	defer g.Done()
-
-	return s.Run(cmd)
-}
-
 func agentSigners() (*agent.Agent, []ssh.Signer, error) {
 	sock, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
@@ -87,14 +78,14 @@ func pemSigner(file string) (ssh.Signer, error) {
 
 // NewClientConfig returns a config using an ssh agent unless ident is not empty.
 func NewClientConfig(ident string, user string) (*ClientConfig, error) {
-	// This should all be able to be simplified by using PublicKeysCallback
+	// I think this could be simplified by using PublicKeysCallback
 	cfg := &ClientConfig{
 		ClientConfig: &ssh.ClientConfig{
 			User: user,
 		},
 	}
 
-	if ident == "" {
+	if ident != "" {
 		s, err := pemSigner(ident)
 		if err != nil {
 			return nil, err
