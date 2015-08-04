@@ -19,7 +19,7 @@ type DOProvider struct {
 	client *godo.Client
 }
 
-// Setup will get the create a new client with an access_token.
+// Setup a new client with an access_token.
 func (p *DOProvider) Setup() error {
 	doToken := env.String("do_access_token", "", "digitalocean PAT token")
 	if doToken == "" {

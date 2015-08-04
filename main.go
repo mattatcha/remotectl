@@ -169,6 +169,7 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 
 }
 
+// printHosts in a hostfile compatible format
 func printHosts(w io.Writer, hosts []ext.Host) {
 	for _, h := range hosts {
 		fmt.Fprintf(w, "%-20s %s.%s\n", h.Addr, h.Name, h.Provider)

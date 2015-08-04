@@ -10,6 +10,7 @@ type Provider interface {
 	Query(namespace, query string) ([]Host, error)
 }
 
+// Host represents a host from a provider
 type Host struct {
 	Name     string
 	Addr     string
@@ -18,6 +19,7 @@ type Host struct {
 	Group    int
 }
 
+// Match attempts a filepath match then a tag match
 func Match(pattern, name string) bool {
 	matched, _ := filepath.Match(pattern, name)
 	if pattern == "" || matched {
