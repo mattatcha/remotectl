@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/MattAitchison/bashenv"
 	"github.com/MattAitchison/env"
+	flag "github.com/ogier/pflag"
 
 	"github.com/MattAitchison/remotectl/providers"
 	sshutil "github.com/MattAitchison/remotectl/ssh"
@@ -37,11 +37,11 @@ var (
 	namespace     = env.String("remotectl_namespace", "", "namespace is a prefix which is matched and removed from hosts")
 	prefixTmplStr = env.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
-	profile       = flag.String("profile", "", "bash profile to source for env config") // Maybe a name will default to a file in ~/.remotectl
 
-	showVersion = flag.Bool("version", false, "show version")
-	showHelp    = flag.Bool("help", false, "show this help message")
-	showList    = flag.Bool("list", false, "lists selected ips and names. /etc/hosts friendly output")
+	profile     = flag.StringP("profile", "p", "", "bash profile to source for env config") // Maybe a name will default to a file in ~/.remotectl
+	showVersion = flag.BoolP("version", "V", false, "show version")
+	showHelp    = flag.BoolP("help", "h", false, "show this help message")
+	showList    = flag.BoolP("list", "l", false, "lists selected ips and names. /etc/hosts friendly output")
 )
 
 func fatal(err error) {
@@ -177,12 +177,12 @@ func printHosts(w io.Writer, hosts []providers.Host) {
 func helpCmd() {
 	usage := `Usage: remotectl <flags> <query> [--] <cmd>
 
-Providers:
+Available Providers:
 %s
 
 Environment Vars:
 `
-	fmt.Printf(usage, providers.Providers)
+	fmt.Printf(usage, providers.Providers())
 	env.PrintDefaults(os.Stderr)
 	fmt.Println("\nFlags:")
 	flag.PrintDefaults()
