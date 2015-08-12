@@ -5,13 +5,14 @@ import (
 	"strings"
 
 	"code.google.com/p/goauth2/oauth"
-	env "github.com/MattAitchison/envconfig"
+	"github.com/MattAitchison/env"
 	"github.com/MattAitchison/remotectl/providers"
 	"github.com/digitalocean/godo"
 )
 
 func init() {
-	providers.Providers.Register(new(DOProvider), "do")
+	providers.Register(&DOProvider{}, "digitalocean")
+	// providers.Providers.Register(new(DOProvider), "do")
 }
 
 // DOProvider is a provider for digitalocean
@@ -21,13 +22,13 @@ type DOProvider struct {
 
 // Setup a new client with an access_token.
 func (p *DOProvider) Setup() error {
-	doToken := env.String("do_access_token", "", "digitalocean PAT token")
-	if doToken == "" {
+	token := env.String("do_access_token", "", "digitalocean PAT token")
+	if token == "" {
 		return errors.New("access key required")
 	}
 
 	t := &oauth.Transport{
-		Token: &oauth.Token{AccessToken: doToken},
+		Token: &oauth.Token{AccessToken: token},
 	}
 
 	p.client = godo.NewClient(t.Client())

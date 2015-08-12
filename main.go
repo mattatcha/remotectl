@@ -14,8 +14,9 @@ import (
 	"text/template"
 
 	"github.com/MattAitchison/bashenv"
-	"github.com/MattAitchison/envconfig"
-	ext "github.com/MattAitchison/remotectl/providers"
+	"github.com/MattAitchison/env"
+
+	"github.com/MattAitchison/remotectl/providers"
 	sshutil "github.com/MattAitchison/remotectl/ssh"
 
 	// Enabled Providers
@@ -28,13 +29,13 @@ var (
 
 	curUser, _ = user.Current()
 
-	sshPort       = envconfig.Int("remotectl_port", 22, "port used to connect to each host")
-	_             = envconfig.String("SSH_AUTH_SOCK", "", "ssh agent socket")
-	ident         = envconfig.String("remotectl_identity", "", "file from which the identity (private key) for public key authentication is read.")
-	usr           = envconfig.String("remotectl_user", curUser.Username, "user to connect as")
-	provider      = envconfig.String("remotectl_provider", "do", "comma-sep list of provider modules to use for selecting hosts")
-	namespace     = envconfig.String("remotectl_namespace", "", "namespace is a prefix which is matched and removed from hosts")
-	prefixTmplStr = envconfig.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
+	sshPort       = env.Int("remotectl_port", 22, "port used to connect to each host")
+	_             = env.String("SSH_AUTH_SOCK", "", "ssh agent socket")
+	ident         = env.String("remotectl_identity", "", "file from which the identity (private key) for public key authentication is read.")
+	usr           = env.String("remotectl_user", curUser.Username, "user to connect as")
+	provider      = env.StringList("remotectl_provider", []string{"digitalocean"}, "comma-sep list of provider modules to use for selecting hosts")
+	namespace     = env.String("remotectl_namespace", "", "namespace is a prefix which is matched and removed from hosts")
+	prefixTmplStr = env.String("remotectl_prefix", "{{.Name}}: ", "prefix template for host log output")
 	prefixTmpl    = template.Must(template.New("prefix").Parse(prefixTmplStr))
 	profile       = flag.String("profile", "", "bash profile to source for env config") // Maybe a name will default to a file in ~/.remotectl
 
@@ -87,14 +88,11 @@ func main() {
 
 	query, cmd := parseArgs(os.Args)
 
-	var hosts []ext.Host
-	for _, p := range ext.Providers.Select(strings.Fields(provider)) {
-		if p == nil {
-			log.Fatal("unknown provider")
-		}
+	var hosts []providers.Host
 
-		// Setup the provider
-		fatal(p.Setup())
+	for _, v := range provider {
+		p, err := providers.Get(v, true)
+		fatal(err)
 
 		// Query the provider for hosts
 		extHosts, err := p.Query(namespace, query)
@@ -118,7 +116,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(len(hosts))
 	for _, host := range hosts {
-		go func(h ext.Host) {
+		go func(h providers.Host) {
 			s := newSession(cfg, h)
 
 			defer func() {
@@ -134,7 +132,7 @@ func main() {
 	wg.Wait()
 }
 
-func newSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
+func newSession(cfg *sshutil.ClientConfig, host providers.Host) *sshutil.Session {
 	addr := fmt.Sprint(host.Addr, ":", sshPort)
 	s, err := cfg.NewSession(addr)
 	if err != nil {
@@ -155,7 +153,7 @@ func newSession(cfg *sshutil.ClientConfig, host ext.Host) *sshutil.Session {
 	return s
 }
 
-func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
+func hostStreamer(host providers.Host, r io.Reader, w io.Writer) {
 	// Locking? One writer?
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -170,7 +168,7 @@ func hostStreamer(host ext.Host, r io.Reader, w io.Writer) {
 }
 
 // printHosts in a hostfile compatible format
-func printHosts(w io.Writer, hosts []ext.Host) {
+func printHosts(w io.Writer, hosts []providers.Host) {
 	for _, h := range hosts {
 		fmt.Fprintf(w, "%-20s %s.%s\n", h.Addr, h.Name, h.Provider)
 	}
@@ -184,8 +182,8 @@ Providers:
 
 Environment Vars:
 `
-	fmt.Printf(usage, ext.Providers.Names())
-	envconfig.PrintDefaults()
+	fmt.Printf(usage, providers.Providers)
+	env.PrintDefaults(os.Stderr)
 	fmt.Println("\nFlags:")
 	flag.PrintDefaults()
 
